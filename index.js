@@ -68,8 +68,8 @@ function getWeekKey(date = new Date()) {
 }
 
 async function postToSheets(payload) {
-  const url = process.env.SHEETS_WEBAPP_URL;
-  const key = process.env.SHEETS_API_KEY;
+  const URL = process.env.URL_DO_APLICATIVO_WEB_DE_PLANILHAS;
+const chave = process.env.CHAVE_API_DO_SHEETS;
   if (!url || !key) throw new Error("SHEETS_WEBAPP_URL ou SHEETS_API_KEY não configurados");
 
   const res = await fetch(url, {
