@@ -1,111 +1,34 @@
-// ✅ CONFIG
-const SHEET_CADASTROS = "cadastros";
-const SHEET_APOSTAS = "apostas";
+const { Telegraf } = require("telegraf");
 
-// Cria as abas e cabeçalhos se não existirem
-function setup() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
-  const cad = ss.getSheetByName(SHEET_CADASTROS) || ss.insertSheet(SHEET_CADASTROS);
-  const apo = ss.getSheetByName(SHEET_APOSTAS) || ss.insertSheet(SHEET_APOSTAS);
-
-  if (cad.getLastRow() === 0) {
-    cad.appendRow([
-      "createdAt", "telegramId", "username", "nome", "telefone", "cpf", "email", "referredBy"
-    ]);
-  }
-
-  if (apo.getLastRow() === 0) {
-    apo.appendRow([
-      "createdAt", "weekKey", "telegramId", "nome", "numeros"
-    ]);
-  }
-
-  return "OK";
+if (!BOT_TOKEN) {
+  console.error("BOT_TOKEN não configurado!");
+  process.exit(1);
 }
 
-function doGet() {
-  // Só pra você testar no navegador e ver se está online
-  return json_({ ok: true, message: "WebApp online. Use POST JSON para gravar." });
-}
+const bot = new Telegraf(BOT_TOKEN);
 
-function doPost(e) {
-  try {
-    const data = parseJson_(e);
+bot.start((ctx) => {
+  ctx.reply("🔥 Bot funcionando! Digite seus 5 números.");
+});
 
-    // ✅ Segurança: exige key
-    const key = String(data.key || "");
-    const expected = String(PropertiesService.getScriptProperties().getProperty("SHEETS_API_KEY") || "");
-    if (!expected) {
-      return json_({ ok: false, error: "SHEETS_API_KEY não configurado no Script Properties" }, 500);
-    }
-    if (key !== expected) {
-      return json_({ ok: false, error: "Chave inválida" }, 401);
-    }
+bot.on("text", (ctx) => {
+  ctx.reply("Recebi sua mensagem: " + ctx.message.text);
+});
 
-    const type = String(data.type || "");
-    if (!type) return json_({ ok: false, error: "type obrigatório" }, 400);
+bot.launch()
+  .then(() => {
+    console.log("🤖 Bot iniciado com sucesso!");
+  })
+  .catch((err) => {
+    console.error("Erro ao iniciar:", err);
+  });
 
-    // Garante abas/cabeçalhos
-    setup();
+// Mantém o processo vivo (importante no Railway)
+process.on("SIGINT", () => bot.stop("SIGINT"));
+process.on("SIGTERM", () => bot.stop("SIGTERM"));
 
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-
-    if (type === "cadastro") {
-      const sh = ss.getSheetByName(SHEET_CADASTROS);
-
-      sh.appendRow([
-        data.createdAt || new Date().toISOString(),
-        data.telegramId || "",
-        data.username || "",
-        data.nome || "",
-        data.telefone || "",
-        data.cpf || "",
-        data.email || "",
-        data.referredBy || ""
-      ]);
-
-      return json_({ ok: true, saved: "cadastro" });
-    }
-
-    if (type === "aposta") {
-      const sh = ss.getSheetByName(SHEET_APOSTAS);
-
-      sh.appendRow([
-        data.createdAt || new Date().toISOString(),
-        data.weekKey || "",
-        data.telegramId || "",
-        data.nome || "",
-        data.numeros || ""
-      ]);
-
-      return json_({ ok: true, saved: "aposta" });
-    }
-
-    return json_({ ok: false, error: "type inválido (use cadastro ou aposta)" }, 400);
-
-  } catch (err) {
-    return json_({ ok: false, error: String(err && err.message ? err.message : err) }, 500);
-  }
-}
-
-
-// ===== helpers =====
-function parseJson_(e) {
-  // Aceita JSON no body
-  if (e && e.postData && e.postData.contents) {
-    return JSON.parse(e.postData.contents);
-  }
-  // fallback (não recomendado)
-  return {};
-}
-
-function json_(obj, status) {
-  const out = ContentService
-    .createTextOutput(JSON.stringify(obj))
-    .setMimeType(ContentService.MimeType.JSON);
-
-  // Apps Script não deixa setar status HTTP direto sempre.
-  // Mas o JSON "ok:false" já resolve pro bot.
-  return out;
-}
+setInterval(() => {
+  console.log("Bot rodando...");
+}, 30000);
