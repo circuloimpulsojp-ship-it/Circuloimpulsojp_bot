@@ -133,7 +133,7 @@ bot.on("text", async (ctx) => {
       if (!isValidName(text)) return ctx.reply("Envie *nome e sobrenome* (mínimo 2 palavras). Ex: Bruno Alencar", { parse_mode: "Markdown" });
       ses.data.nome = text;
       ses.step = STEP.PHONE;
-      return ctx.reply("Agora seu *Telefone com DDD* (ex: 83999291290).", { parse_mode: "Markdown" });
+      return ctx.reply("Agora seu *Telefone com DDD* (ex: 83900000000).", { parse_mode: "Markdown" });
     }
 
     // 3) Telefone
