@@ -1,34 +1,84 @@
-const { Telegraf } = require("telegraf");
+const { Telegraf, session } = require("telegraf");
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
+const bot = new Telegraf(process.env.BOT_TOKEN);
+bot.use(session());
 
-if (!BOT_TOKEN) {
-  console.error("BOT_TOKEN não configurado!");
-  process.exit(1);
+function onlyDigits(text) {
+  return text.replace(/\D/g, "");
 }
 
-const bot = new Telegraf(BOT_TOKEN);
+function validarNumeros(text) {
+  const nums = text.trim().split(/\s+/).map(n => parseInt(n));
+  if (nums.length !== 6) return false;
+  if (nums.some(n => isNaN(n) || n < 1 || n > 60)) return false;
+  if (new Set(nums).size !== 6) return false;
+  return nums;
+}
 
 bot.start((ctx) => {
-  ctx.reply("🔥 Bot funcionando! Digite seus 5 números.");
+  ctx.session.step = "nome";
+  ctx.session.data = {};
+  ctx.reply("👋 Bem-vindo!\n\nDigite seu Nome completo:");
 });
 
-bot.on("text", (ctx) => {
-  ctx.reply("Recebi sua mensagem: " + ctx.message.text);
+bot.on("text", async (ctx) => {
+  const step = ctx.session.step;
+  const text = ctx.message.text;
+
+  if (!step) {
+    ctx.session.step = "nome";
+    ctx.session.data = {};
+    return ctx.reply("Digite seu Nome completo:");
+  }
+
+  // 1️⃣ Nome
+  if (step === "nome") {
+    ctx.session.data.nome = text;
+    ctx.session.step = "cpf";
+    return ctx.reply("Digite seu CPF (somente números):");
+  }
+
+  // 2️⃣ CPF
+  if (step === "cpf") {
+    const cpf = onlyDigits(text);
+    if (cpf.length !== 11) {
+      return ctx.reply("❌ CPF inválido. Digite 11 números.");
+    }
+    ctx.session.data.cpf = cpf;
+    ctx.session.step = "telefone";
+    return ctx.reply("Digite seu Telefone (com DDD):");
+  }
+
+  // 3️⃣ Telefone
+  if (step === "telefone") {
+    const telefone = onlyDigits(text);
+    if (telefone.length < 10) {
+      return ctx.reply("❌ Telefone inválido.");
+    }
+    ctx.session.data.telefone = telefone;
+    ctx.session.step = "numeros";
+    return ctx.reply("Agora escolha 6 números de 01 a 60 separados por espaço.\nEx: 01 10 22 35 44 59");
+  }
+
+  // 4️⃣ Números
+  if (step === "numeros") {
+    const numeros = validarNumeros(text);
+    if (!numeros) {
+      return ctx.reply("❌ Envie 6 números válidos entre 01 e 60.");
+    }
+
+    ctx.reply(
+      `✅ Cadastro concluído!\n\n` +
+      `Nome: ${ctx.session.data.nome}\n` +
+      `CPF: ${ctx.session.data.cpf}\n` +
+      `Telefone: ${ctx.session.data.telefone}\n\n` +
+      `Números escolhidos: ${numeros.join(", ")}`
+    );
+
+    ctx.session.step = null;
+    ctx.session.data = {};
+  }
 });
 
-bot.launch()
-  .then(() => {
-    console.log("🤖 Bot iniciado com sucesso!");
-  })
-  .catch((err) => {
-    console.error("Erro ao iniciar:", err);
-  });
-
-// Mantém o processo vivo (importante no Railway)
-process.on("SIGINT", () => bot.stop("SIGINT"));
-process.on("SIGTERM", () => bot.stop("SIGTERM"));
-
-setInterval(() => {
-  console.log("Bot rodando...");
-}, 30000);
+bot.launch();
+console.log("Bot rodando...");
